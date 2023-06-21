@@ -43,7 +43,7 @@
         msg: 'Key Successfully copied for user {{ ansible_user_id }} on {{ ansible_host }}'
 
     - name: Existing Message
-      when: ssh is not changed and ssh succeeded
+      when: ssh is not changed and ssh is succeeded
       ansible.builtin.debug:
         msg: 'Key already exists for user {{ ansible_user_id }} on {{ ansible_host }}'
 
