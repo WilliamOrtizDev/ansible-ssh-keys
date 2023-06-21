@@ -1,0 +1,53 @@
+---
+- name: Copy user SSH keys
+  hosts: all
+  ignore_unreachable: true
+  strategy: linear
+  tasks:
+    - name: Check for .ssh directory
+      ansible.builtin.file:
+        path: '~/.ssh'
+        state: directory
+        owner: '{{ ansible_user_id }}'
+        group: '{{ ansible_user_id }}'
+        mode: '700'
+
+    - name: Create keypair
+      delegate_to: localhost
+      run_once: true
+      community.crypto.openssh_keypair:
+        path: '~/.ssh/id_rsa'
+        state: present
+        size: 4096
+        type: rsa
+        comment: 'ansible generated key for {{ ansible_user_id }}'
+        owner: '{{ ansible_user_id }}'
+        group: '{{ ansible_user_id }}'
+        mode: '600'
+
+    - name: Copy Private key to all hosts
+      ansible.builtin.copy:
+        src: '~/.ssh/id_rsa'
+        dest: '~/.ssh/id_rsa'
+        mode: '600'
+
+    - name: Push public keys to all systems
+      ansible.posix.authorized_key:
+        user: '{{ ansible_user_id }}'
+        key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+      register: ssh
+
+    - name: Success Message
+      when: ssh is changed
+      ansible.builtin.debug:
+        msg: 'Key Successfully copied for user {{ ansible_user_id }} on {{ ansible_host }}'
+
+    - name: Existing Message
+      when: ssh is not changed and ssh succeeded
+      ansible.builtin.debug:
+        msg: 'Key already exists for user {{ ansible_user_id }} on {{ ansible_host }}'
+
+    - name: Failure Message
+      when: ssh is failed
+      ansible.builtin.debug:
+        msg: 'Key failed to copy for user {{ ansible_user_id }} on {{ ansible_host }}'
